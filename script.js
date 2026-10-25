@@ -12,7 +12,14 @@ async function checkWeather(city) {
         document.querySelector(".weather").style.display = "none";
     } else {
         var data = await response.json();
+        displayWeather(data);
         
+    }
+}
+
+
+
+function displayWeather(data) {
     const condition = data.weather[0].main;
 
     document.querySelector(".city").innerHTML = data.name;
@@ -33,11 +40,95 @@ async function checkWeather(city) {
     icon.src = weatherIcons[condition] || "images/clear.png";
     document.querySelector(".error").style.display = "none";
     document.querySelector(".weather").style.display = "block";
-    }
-    
-
-    
 }
+
+
+async function checkWeatherByLocation(lat, lon) {
+    const locationUrl =
+        `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${key}`;
+
+    const response = await fetch(locationUrl);
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || "Weather request failed");
+    }
+
+    displayWeather(data);
+}
+
+
 btn.addEventListener("click", () => {
     checkWeather(search.value);
 });
+
+function getLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(showPosition, showError);
+    } else {
+        document.getElementById("self-loc-btn").innerHTML = "Geolocation is not supported by this browser.";
+    }
+}
+
+function getLocation() {
+    const message = document.getElementById("location");
+
+    if (navigator.geolocation) {
+        message.textContent = "Finding your location...";
+
+        navigator.geolocation.getCurrentPosition(
+            showPosition,
+            showError,
+            { 
+                enableHighAccuracy: false,
+                timeout: 10000,
+                maximumAge: 300000
+            }
+        );
+    } else {
+        message.textContent =
+            "Geolocation is not supported by this browser.";
+    }
+}
+
+function showPosition(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+
+    document.getElementById("location").textContent =
+        "Getting your local weather...";
+
+    checkWeatherByLocation(lat, lon)
+        .then(() => {
+            document.getElementById("location").textContent = "";
+        })
+        .catch(() => {
+            document.getElementById("location").textContent =
+                "Something went wrong while fetching your weather.";
+        });
+}
+
+function showError(error) {
+    const message = document.getElementById("location");
+
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            message.textContent =
+                "Location permission denied. Please allow location access.";
+            break;
+
+        case error.POSITION_UNAVAILABLE:
+            message.textContent =
+                "Your location is currently unavailable.";
+            break;
+
+        case error.TIMEOUT:
+            message.textContent =
+                "Location request timed out. Please try again.";
+            break;
+
+        default:
+            message.textContent =
+                "An unknown error occurred.";
+    }
+}

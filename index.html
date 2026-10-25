@@ -11,6 +11,10 @@
                 <input type="text" placeholder="Search for a city..." spellcheck="false">
                 <button><img src="images/search.png"></button>
             </div>
+            <div class="self-loc">
+                <button onclick="getLocation()" id="self-loc-btn">Or use your own location?</button>
+                <p id="location"></p>
+            </div>
             <div class="error">
                 <p>Invalid city name.</p>
             </div>
