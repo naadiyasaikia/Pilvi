@@ -20,6 +20,7 @@ body {
     text-align: center;
 }
 
+
 .search {
     width: 100%;
     display: flex;
@@ -120,4 +121,65 @@ body {
     font-size: 14px;
     margin-top: 10px;
     display: none;
+}
+
+body,
+.card,
+.search input,
+.search button,
+.self-loc button {
+    transition: background 0.8s ease, color 0.8s ease;
+}
+
+body.cold {
+    background: #c4dff6;
+}
+body.cold .card {
+    background: linear-gradient(135deg, #2f6690, #16425b); /*baltic blue for the cold!*/
+    color: #fff;
+}
+
+body.hot {
+    background: #ffdfca;
+}
+body.hot .card {
+    background: linear-gradient(135deg, #f7b538, #db7c26);
+    color: #fff;
+}
+
+body.day {
+    background: #fefae0;
+    color: #d4a373;
+}
+
+body.day .card {
+    background: linear-gradient(135deg, #90e0ef, #48cae4);
+    color: #fff;
+}
+body.night {
+    background: #101426;
+    color: #fff;
+}
+
+body.night .card {
+    background: linear-gradient(135deg, #474056, #090c08);
+    color: #fff;
+}
+
+.unit-selector {
+    margin-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.unit-selector select {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 20px;
+    background: #ebfffc;
+    color: #555;
+    font-size: 14px;
+    cursor: pointer;
 }

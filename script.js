@@ -3,6 +3,7 @@ const url = "https://api.openweathermap.org/data/2.5/weather?units=metric&q=";
 const search = document.querySelector(".search input");
 const btn = document.querySelector(".search button");
 const icon = document.querySelector(".weather-icon");
+let lastWeatherData = null;
 
 async function checkWeather(city) {
     const response = await fetch(url + city + `&appid=${key}`);
@@ -17,13 +18,33 @@ async function checkWeather(city) {
     }
 }
 
+let currentUnit = "C";
+function convertTemperature(celsius) {
+    if (currentUnit === "F") {
+        return (celsius * 9 / 5) + 32;
+    } else if (currentUnit === "K") {
+        return celsius + 273.15;
+    }
 
+    return celsius;
+}
 
 function displayWeather(data) {
+    lastWeatherData = data;
     const condition = data.weather[0].main;
 
+    updateTheme(data);
     document.querySelector(".city").innerHTML = data.name;
-    document.querySelector(".temp").innerHTML = Math.round(data.main.temp) + "°C";
+    const temperature = convertTemperature(data.main.temp);
+    let symbol = "°C";
+    if (currentUnit === "F") {
+        symbol = "°F";
+    } else if (currentUnit === "K") {
+        symbol = " K";
+    }
+
+document.querySelector(".temp").innerHTML =
+    Math.round(temperature * 10) / 10 + symbol;
     document.querySelector(".humidity").innerHTML = data.main.humidity + "%";
     document.querySelector(".wind").innerHTML = data.wind.speed + " km/h";
     const weatherIcons = {
@@ -132,3 +153,53 @@ function showError(error) {
                 "An unknown error occurred.";
     }
 }
+
+
+async function getForecast(lat, lon) {
+    const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${key}`;
+
+    const response = await fetch(forecastUrl);
+    const data = await response.json();
+
+    if (!response.ok) {
+        throw new Error(data.message || "Forecast request failed");
+    }
+    const now = Date.now();
+    const next24Hours = data.list.filter(item => {
+        const forecastTime = item.dt * 1000;
+
+        return forecastTime > now &&
+               forecastTime <= now + 24 * 60 * 60 * 1000;
+    });
+
+    console.log("Next 24 hours:", next24Hours);
+
+    return next24Hours;
+}
+
+function updateTheme(data) {
+    const temperature = data.main.temp;
+    const isNight = data.weather[0].icon.endsWith("n");
+
+    document.body.classList.remove("cold", "hot", "day", "night");
+
+    if (isNight) {
+        document.body.classList.add("night");
+    } else if (temperature <= 5) {
+        document.body.classList.add("cold");
+    } else if (temperature >= 25) {
+        document.body.classList.add("hot");
+    } else {
+        document.body.classList.add("day");
+    }
+}
+
+const unitSelector = document.getElementById("units");
+
+unitSelector.addEventListener("change", () => {
+    currentUnit = unitSelector.value;
+
+    if (lastWeatherData) {
+        displayWeather(lastWeatherData);
+    }
+});
