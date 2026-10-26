@@ -207,6 +207,9 @@ document.querySelector(".temp").innerHTML =
     icon.src = weatherIcons[condition] || "images/clear.png";
     document.querySelector(".error").style.display = "none";
     document.querySelector(".weather").style.display = "block";
+    document.querySelectorAll(".forecast").forEach(section => {
+    section.style.display = "block";
+});
 }
 
 
