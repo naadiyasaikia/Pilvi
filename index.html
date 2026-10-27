@@ -47,17 +47,31 @@
                     </div>
                 </div>
             </div>
+            
             <div class="forecast" style="display: none;">
                 <h3>Next 24 Hours</h3>
-                <div class="hourly-forecast" id="hourly-forecast">
-                </div>
+                <div class="hourly-forecast" id="hourly-forecast"></div>
             </div>
+
             <div class="forecast" style="display: none;">
                 <h3>7-Day Forecast</h3>
-                <div class="daily-forecast" id="daily-forecast">
-                </div>
+                <div class="daily-forecast" id="daily-forecast"></div>
             </div>
+
+            <div class="favorite">
+                <button id="heart" type="button" title="Add to favourites">
+                    <img src="images/heart.png" alt="Favourite">
+                </button>
+                <button id="show-favorites" type="button">
+                    My favourites ♥
+                </button>
             </div>
-    <script src="script.js"></script>
+
+            <div id="favorites-menu" class="favorites-menu"
+                 style="display: none;"></div>
+
+        </div>
+
+        <script src="script.js"></script>
     </body>
 </html>

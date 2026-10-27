@@ -4,6 +4,14 @@ const search = document.querySelector(".search input");
 const btn = document.querySelector(".search button");
 const icon = document.querySelector(".weather-icon");
 let lastWeatherData = null;
+let forecastData = null;
+let currentCityName = "";
+let favoriteCities = JSON.parse(
+    localStorage.getItem("pilviFavorites") || "[]"
+);
+const heartButton = document.getElementById("heart");
+const favoritesButton = document.getElementById("show-favorites");
+const favoritesMenu = document.getElementById("favorites-menu");
 
 async function fetchForecast(lat, lon) {
     const forecast_url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` + `&current=temperature_2m&hourly=temperature_2m,weather_code` + `&daily=weather_code,temperature_2m_max,temperature_2m_min` + `&forecast_days=7&timezone=auto`;
@@ -176,7 +184,6 @@ function displayWeather(data) {
         fetchForecast(data.coord.lat, data.coord.lon);
     }
     lastWeatherData = data;
-    let forecastData = null;
     const condition = data.weather[0].main;
 
     updateTheme(data);
@@ -188,6 +195,9 @@ function displayWeather(data) {
     } else if (currentUnit === "K") {
         symbol = " K";
     }
+    currentCityName = data.name;
+    updateFavoriteButton();
+
 
 document.querySelector(".temp").innerHTML =
     Math.round(temperature * 10) / 10 + symbol;
@@ -355,3 +365,86 @@ unitSelector.addEventListener("change", () => {
     // Re-render using the forecast data already fetched
     displayForecasts();
 });
+
+
+function updateFavoriteButton() {
+    const isFavorite = favoriteCities.some(
+        city => city.toLowerCase() === currentCityName.toLowerCase()
+    );
+
+    heartButton.textContent = "";
+    heartButton.innerHTML = isFavorite ? "♥" : "♡";
+    heartButton.title = isFavorite
+        ? "Remove from favourites"
+        : "Add to favourites";
+}
+
+heartButton.addEventListener("click", () => {
+    if (!currentCityName) return;
+
+    const existingIndex = favoriteCities.findIndex(
+        city => city.toLowerCase() === currentCityName.toLowerCase()
+    );
+
+    if (existingIndex !== -1) {
+        favoriteCities.splice(existingIndex, 1);
+    } else {
+        favoriteCities.push(currentCityName);
+    }
+
+    localStorage.setItem(
+        "pilviFavorites",
+        JSON.stringify(favoriteCities)
+    );
+
+    updateFavoriteButton();
+    renderFavorites();
+});
+
+favoritesButton.addEventListener("click", () => {
+    const isHidden = favoritesMenu.style.display === "none";
+    favoritesMenu.style.display = isHidden ? "block" : "none";
+    renderFavorites();
+});
+
+function renderFavorites() {
+    favoritesMenu.innerHTML = "";
+
+    if (favoriteCities.length === 0) {
+        favoritesMenu.textContent = "No favourite cities yet!";
+        return;
+    }
+
+    favoriteCities.forEach(city => {
+        const row = document.createElement("div");
+        row.className = "favorite-city";
+
+        const cityButton = document.createElement("button");
+        cityButton.textContent = city;
+        cityButton.addEventListener("click", () => {
+            checkWeather(city);
+        });
+
+        const removeButton = document.createElement("button");
+        removeButton.textContent = "✕";
+        removeButton.title = "Remove favourite";
+        removeButton.addEventListener("click", () => {
+            favoriteCities = favoriteCities.filter(
+                savedCity => savedCity.toLowerCase() !== city.toLowerCase()
+            );
+
+            localStorage.setItem(
+                "pilviFavorites",
+                JSON.stringify(favoriteCities)
+            );
+
+            renderFavorites();
+            updateFavoriteButton();
+        });
+
+        row.append(cityButton, removeButton);
+        favoritesMenu.appendChild(row);
+    });
+}
+
+renderFavorites();
