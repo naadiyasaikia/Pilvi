@@ -12,20 +12,34 @@ let favoriteCities = JSON.parse(
 const heartButton = document.getElementById("heart");
 const favoritesButton = document.getElementById("show-favorites");
 const favoritesMenu = document.getElementById("favorites-menu");
+let openMeteoTemperatures = null;
+let openWeatherTemperatures = null;
+let comparisonChart = null;
+let fmiTemperatures = null;
+
 
 async function fetchForecast(lat, lon) {
-    const forecast_url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` + `&current=temperature_2m&hourly=temperature_2m,weather_code` + `&daily=weather_code,temperature_2m_max,temperature_2m_min` + `&forecast_days=7&timezone=auto`;
+    const forecast_url =
+        `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+        `&current=temperature_2m&hourly=temperature_2m,weather_code` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min` +
+        `&forecast_days=7&timezone=auto`;
+
     try {
         const response = await fetch(forecast_url);
         if (!response.ok) {
-            throw new Error('Could not load forecast');
+            throw new Error("Could not load forecast");
         }
         forecastData = await response.json();
+        openMeteoTemperatures = forecastData.hourly;
         displayForecasts();
+        return true;
     } catch (error) {
         console.error("Forecast error:", error);
+        return false;
     }
 }
+
 
 //convert open meteo weather codes into descriptions
 function getForecastDescription(code) {
@@ -164,8 +178,26 @@ async function checkWeather(city) {
         document.querySelector(".weather").style.display = "none";
         return;
     }
+    document.getElementById("hourly-title").style.display = "block";
     displayWeather(data);
-    fetchForecast(data.coord.lat, data.coord.lon);
+    const lat = data.coord.lat;
+    const lon = data.coord.lon;
+    try {
+        await fetchFmiForecast(lat, lon);
+    } catch (error) {
+        console.error("FMI forecast error:", error);
+    }
+    
+    
+    try {
+    const meteoLoaded = await fetchForecast(lat, lon);
+    if (!meteoLoaded) return;
+        openWeatherTemperatures = await fetchOpenWeatherForecast(lat, lon);
+        drawComparisonChart();
+    } catch (error) {
+        console.error("Forecast comparison error:", error);
+}
+
 }
 
 let currentUnit = "C";
@@ -241,6 +273,11 @@ async function checkWeatherByLocation(lat, lon) {
 btn.addEventListener("click", () => {
     checkWeather(search.value);
 });
+search.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        checkWeather(search.value);
+    }
+});
 
 function getLocation() {
     if (navigator.geolocation) {
@@ -281,6 +318,7 @@ function showPosition(position) {
     checkWeatherByLocation(lat, lon)
         .then(() => {
             document.getElementById("location").textContent = "";
+            document.getElementById("hourly-title").style.display = "block";
         })
         .catch(() => {
             document.getElementById("location").textContent =
@@ -448,3 +486,169 @@ function renderFavorites() {
 }
 
 renderFavorites();
+
+
+async function fetchOpenWeatherForecast(lat, lon) {
+    const forecastUrl =
+        `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${key}`;
+
+    const response = await fetch(forecastUrl);
+
+    if (!response.ok) {
+        throw new Error("Could not load OpenWeatherMap forecast");
+    }
+
+    const data = await response.json();
+
+    // OpenWeatherMap provides forecasts in 3-hour intervals.
+    return data.list.slice(0, 8).map(item => ({
+        time: item.dt_txt,
+        temperature: item.main.temp
+    }));
+}
+
+
+function drawComparisonChart() {
+    if (!openMeteoTemperatures || !openWeatherTemperatures) {
+        return;
+    }
+
+    const times = openMeteoTemperatures.time.slice(0, 24);
+
+    const openMeteoValues = times.map(time => {
+        const index = openMeteoTemperatures.time.indexOf(time);
+        return openMeteoTemperatures.temperature_2m[index];
+    });
+
+    const openWeatherValues = times.map(time => {
+    const meteoTime = new Date(time).getTime();
+    const forecast = openWeatherTemperatures.find(item => {
+        const weatherTime = new Date(
+            item.time.replace(" ", "T") + "Z"
+        ).getTime();
+
+        return Math.abs(weatherTime - meteoTime) < 60 * 60 * 1000;
+    });
+    return forecast ? forecast.temperature : null;
+});
+    const fmiValues = times.map(time => {
+    if (!fmiTemperatures) return null;
+
+    const meteoTime = new Date(time).getTime();
+
+    const forecast = fmiTemperatures.find(item => {
+        const fmiTime = new Date(item.time).getTime();
+
+        return Math.abs(fmiTime - meteoTime) < 60 * 60 * 1000;
+    });
+
+    return forecast ? forecast.temperature : null;
+    });
+    const canvas = document.getElementById("comparison-chart");
+
+    if (comparisonChart) {
+        comparisonChart.destroy();
+    }
+
+    comparisonChart = new Chart(canvas, {
+        type: "line",
+        data: {
+            labels: times.map(time => time.slice(11, 16)),
+            datasets: [
+                {
+                    label: "Open-Meteo (°C)",
+                    data: openMeteoValues,
+                    borderColor: "#00b894",
+                    tension: 0.3,
+                    spanGaps: false
+                },
+                {
+                    label: "OpenWeatherMap (°C)",
+                    data: openWeatherValues,
+                    borderColor: "#6c5ce7",
+                    tension: 0.3,
+                    spanGaps: false
+                },
+                {
+                    label: "FMI (°C)",
+                    data: fmiValues,
+                    borderColor: "#e17055",
+                    tension: 0.3,
+                    spanGaps: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    title: {
+                        display: true,
+                        text: "Temperature (°C)"
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: "Time"
+                    }
+                }
+            }
+        }
+    });
+}
+async function fetchFmiForecast(lat, lon) {
+    const city = search.value.trim();
+
+    const params = new URLSearchParams({
+        service: "WFS",
+        version: "2.0.0",
+        request: "getFeature",
+        storedquery_id:
+            "fmi::forecast::harmonie::surface::point::timevaluepair",
+        place: city,
+        parameters: "Temperature",
+        starttime: new Date().toISOString(),
+        endtime: new Date(
+            Date.now() + 24 * 60 * 60 * 1000
+        ).toISOString(),
+        timestep: "60"
+    });
+
+    const response = await fetch(
+        `https://opendata.fmi.fi/wfs?${params}`
+    );
+
+    if (!response.ok) {
+        throw new Error(`FMI request failed: ${response.status}`);
+    }
+
+    const xmlText = await response.text();
+    const xml = new DOMParser().parseFromString(
+        xmlText,
+        "application/xml"
+    );
+
+    const points = xml.getElementsByTagNameNS(
+        "*",
+        "MeasurementTVP"
+    );
+
+    fmiTemperatures = Array.from(points).map(point => {
+        return {
+            time: point.getElementsByTagNameNS("*", "time")[0]
+                .textContent,
+            temperature: Number(
+                point.getElementsByTagNameNS("*", "value")[0]
+                    .textContent
+            )
+        };
+    });
+
+    console.log("FMI temperatures:", fmiTemperatures);
+
+    return fmiTemperatures;
+}
+
+
+

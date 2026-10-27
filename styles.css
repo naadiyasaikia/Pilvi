@@ -341,4 +341,8 @@ body.night .card {
     cursor: pointer;
 }
 
+.comparison-forecast {
+    display: none;
+}
+
 /* heart icon used is by Vlad Szirka - Flaticon.*/
